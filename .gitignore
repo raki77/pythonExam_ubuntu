@@ -14,3 +14,11 @@
 /.idea/pythonExam_ubuntu.iml
 /.idea/vcs.xml
 /240830/.idea/vcs.xml
+202409/240909_LSTM/aclImdb/imdb.vocab
+202409/240909_LSTM/aclImdb/imdbEr.txt
+202409/240909_LSTM/aclImdb/README
+202409/240909_LSTM/aclImdb/test/labeledBow.feat
+202409/240909_LSTM/aclImdb/test/neg/0_2.txt
+202409/240909_LSTM/aclImdb/test/neg/1_3.txt
+202409/240909_LSTM/aclImdb/test/neg/2_3.txt
+202409/240909_LSTM/aclImdb/test/neg/3_4.txt
