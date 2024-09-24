@@ -1,0 +1,33 @@
+https://af05d0eb1988ebed9c.gradio.live/
+
+
+import random
+import gradio as gr
+
+
+def random_response(message, history):
+    products = [
+        "적금 상품",
+        "대출 상품",
+        "신용 카드",
+        "예금 상품",
+        "주택청약 통장"
+    ]
+    greetings = [
+        "고객님 안녕하세요.",
+        "고객님 어떤 은행 상품을 안내해드릴까요?"
+    ]
+
+    if "상품" in message:
+        product = random.choice(products)
+        response = f"{product}에 대해 안내해드리겠습니다. 관심 있으신가요?"
+    else:
+        response = random.choice(greetings)
+
+    yield response
+
+
+demo = gr.ChatInterface(random_response)
+
+if __name__ == "__main__":
+    demo.launch(share=True)
