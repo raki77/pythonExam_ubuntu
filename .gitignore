@@ -47,3 +47,5 @@
 240923/models/encoder/fingerprint.pb
 240923/models/decoder/variables/variables.index
 240923/notebooks/__pycache__/utils.cpython-37.pyc
+240923/logs/validation/events.out.tfevents.1727074782.DESKTOP-PGV55HT.10356.3.v2
+240923/logs/train/events.out.tfevents.1727074703.DESKTOP-PGV55HT.10356.2.v2
