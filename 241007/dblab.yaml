@@ -1,0 +1,209 @@
+Parameters:
+  KeyName:
+    Description: Name of an existing EC2 KeyPair to enable SSH access to the instances. Linked to AWS Parameter
+    Type: AWS::EC2::KeyPair::KeyName
+    ConstraintDescription: must be the name of an existing EC2 KeyPair.
+  InstanceType:
+    Description: Enter t2.micro, t3.micro. Default is t2.micro.
+    Type: String
+    Default: t2.micro
+    AllowedValues: 
+      - t2.micro
+      - t3.micro
+  LatestAmiId:
+    Description: (DO NOT CHANGE)
+    Type: 'AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>'
+    Default: '/aws/service/ami-amazon-linux-latest/amzn2-ami-hvm-x86_64-gp2'
+    AllowedValues:
+      - /aws/service/ami-amazon-linux-latest/amzn2-ami-hvm-x86_64-gp2
+
+Resources:
+# VPC Resource
+  CH6VPC:
+    Type: AWS::EC2::VPC
+    Properties:
+     CidrBlock: 10.6.0.0/16
+     EnableDnsSupport: true
+     EnableDnsHostnames: true
+     Tags:
+      - Key: Name
+        Value: CH6-VPC
+  CH6IGW:
+    Type: AWS::EC2::InternetGateway
+    Properties:
+      Tags:
+        - Key: Name
+          Value: CH6-IGW
+  VPC1InternetGatewayAttachment:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      InternetGatewayId: !Ref CH6IGW
+      VpcId: !Ref CH6VPC
+
+  CH6PublicRT:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref CH6VPC
+      Tags:
+        - Key: Name
+          Value: CH6-PublicRT
+  CH6PrivateRT:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref CH6VPC
+      Tags:
+        - Key: Name
+          Value: CH6-PrivateRT
+
+  VPC1Route1:
+    Type: AWS::EC2::Route
+    DependsOn: VPC1InternetGatewayAttachment
+    Properties:
+      RouteTableId: !Ref CH6PublicRT
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref CH6IGW
+
+  CH6Subnet1:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref CH6VPC
+      AvailabilityZone: !Select [ 0, !GetAZs '' ]
+      MapPublicIpOnLaunch: true
+      CidrBlock: 10.6.1.0/24
+      Tags:
+        - Key: Name
+          Value: CH6-Subnet1
+  VPC1Subnet1RouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref CH6PublicRT
+      SubnetId: !Ref CH6Subnet1
+
+  CH6Subnet2:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref CH6VPC
+      AvailabilityZone: !Select [ 0, !GetAZs '' ]
+      MapPublicIpOnLaunch: true
+      CidrBlock: 10.6.2.0/24
+      Tags:
+        - Key: Name
+          Value: CH6-Subnet2
+  VPC1Subnet2RouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref CH6PrivateRT
+      SubnetId: !Ref CH6Subnet2
+  CH6Subnet3:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref CH6VPC
+      AvailabilityZone: !Select [ 2, !GetAZs '' ]
+      MapPublicIpOnLaunch: true
+      CidrBlock: 10.6.3.0/24
+      Tags:
+        - Key: Name
+          Value: CH6-Subnet3
+  VPC1Subnet3RouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref CH6PrivateRT
+      SubnetId: !Ref CH6Subnet3
+
+# Instances
+  VPC1Instance1:
+    Type: AWS::EC2::Instance
+    Properties:
+      ImageId: !Ref LatestAmiId
+      InstanceType: !Ref InstanceType
+      KeyName: !Ref KeyName
+      Tags:
+        - Key: Name
+          Value: CH6-WebSrv
+      NetworkInterfaces:
+        - DeviceIndex: 0
+          SubnetId: !Ref CH6Subnet1
+          GroupSet:
+          - !Ref CH6SG1
+          PrivateIpAddress: 10.6.1.10
+      UserData:
+        Fn::Base64: |
+          #!/bin/bash
+          hostnamectl --static set-hostname CH6-WebSrv
+          echo "sudo su -" >> /home/ec2-user/.bashrc
+          yum install -y httpd mysql php php-mysql tmux tree
+          systemctl start httpd && systemctl enable httpd
+          sed -i "s/UTC/Asia\/Seoul/g" /etc/sysconfig/clock
+          ln -sf /usr/share/zoneinfo/Asia/Seoul /etc/localtime
+          cd /var/www/html/
+          curl -O https://ongjabook.s3.ap-northeast-2.amazonaws.com/dbtest2.zip
+          unzip dbtest2.zip
+          rm -rf dbtest2.zip
+          mkdir /db_sh
+          chmod 777 -R /db_sh
+          cd /db_sh
+          curl -O https://ongjabook.s3.ap-northeast-2.amazonaws.com/db_sh.zip
+          unzip db_sh.zip
+          rm -rf db_sh.zip
+
+  CH6SG1:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      VpcId: !Ref CH6VPC
+      GroupDescription: CH6-SGWebSrv
+      Tags:
+      - Key : Name
+        Value : CH6-SGWebSrv
+      SecurityGroupIngress:
+      - IpProtocol: tcp
+        FromPort: '22'
+        ToPort: '22'
+        CidrIp: 0.0.0.0/0
+      - IpProtocol: tcp
+        FromPort: '80'
+        ToPort: '80'
+        CidrIp: 0.0.0.0/0
+      - IpProtocol: icmp
+        FromPort: -1
+        ToPort: -1
+        CidrIp: 0.0.0.0/0
+
+  CH6SG2:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      VpcId: !Ref CH6VPC
+      GroupDescription: CH6-SGRDS
+      Tags:
+      - Key : Name
+        Value : CH6-SGRDS
+      SecurityGroupIngress:
+      - IpProtocol: tcp
+        FromPort: '3306'
+        ToPort: '3306'
+        SourceSecurityGroupId: !Ref CH6SG1
+      
+# AWS RDS
+  myDBSubnetGroup:
+    DependsOn: CH6Subnet3
+    Type: AWS::RDS::DBSubnetGroup
+    Properties: 
+      DBSubnetGroupDescription: DBLab-Subnet23
+      SubnetIds: 
+        - !Ref CH6Subnet2
+        - !Ref CH6Subnet3
+      Tags: 
+        - 
+          Key: Name
+          Value: CH6-DB-Subnet23
+
+  myDBParameterGroup:
+    Type: AWS::RDS::DBParameterGroup
+    Properties: 
+      Description: my mysql 8
+      Family: mysql8.0
+      Parameters: 
+        character_set_database: utf8
+        character_set_server: utf8
+      Tags: 
+      - Key : Name
+        Value : mymysql8
